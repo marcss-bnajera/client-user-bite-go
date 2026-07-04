@@ -63,29 +63,26 @@ export const Header = ({ mobileMenuOpen, onToggleMobileMenu }) => {
 
     return (
         <nav className="bg-[#F5EFE6] shadow-sm border-b border-[#E8D8C3] sticky top-0 z-50">
-            <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 h-16 flex items-center justify-between">
+            <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 h-16 flex items-center">
 
-                <div className="flex items-center gap-2 sm:gap-3 min-w-0 shrink-0">
+                <div className="flex items-center shrink-0">
                     <button
                         onClick={onToggleMobileMenu}
                         className="p-2 rounded-xl hover:bg-[#E8D8C3] text-[#2B2B2B] transition-colors md:hidden"
                     >
                         {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
                     </button>
-                    <Link to="/restaurants" className="flex items-center gap-2">
+                    <Link to="/restaurants" className="flex items-center">
                         <img
                             src={imgLogo}
-                            alt="Bite & Go Logo"
-                            className="h-8 sm:h-9 md:h-10 w-auto object-contain transition-transform hover:scale-105"
+                            alt="Bite & Go"
+                            className="h-9 sm:h-10 md:h-11 w-auto object-contain transition-transform hover:scale-105"
                         />
-                        <h1 className="font-extrabold text-[#2B2B2B] text-lg md:text-xl tracking-tight hidden sm:block whitespace-nowrap">
-                            Bite <span className="text-[#E67E22]">&amp;</span> Go
-                        </h1>
                     </Link>
                 </div>
 
                 {isAuthenticated && (
-                    <div className="hidden md:flex items-center gap-1">
+                    <div className="hidden md:flex items-center justify-center flex-1 gap-1 mx-4">
                         {navLinks.map((link) => {
                             const isActive = location.pathname === link.path ||
                                 (link.path !== "/restaurants" && location.pathname.startsWith(link.path));
@@ -93,7 +90,7 @@ export const Header = ({ mobileMenuOpen, onToggleMobileMenu }) => {
                                 <Link
                                     key={link.path}
                                     to={link.path}
-                                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold transition-all ${
+                                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold transition-all whitespace-nowrap ${
                                         isActive
                                             ? "bg-[#E67E22] text-white"
                                             : "text-[#6B6B6B] hover:bg-[#E8D8C3] hover:text-[#2B2B2B]"
@@ -107,7 +104,7 @@ export const Header = ({ mobileMenuOpen, onToggleMobileMenu }) => {
                     </div>
                 )}
 
-                <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 ml-auto">
                     {isAuthenticated && (
                         <div ref={searchRef} className="relative">
                             <button
@@ -205,8 +202,7 @@ export const Header = ({ mobileMenuOpen, onToggleMobileMenu }) => {
                     </button>
                 </div>
                 <div className="mt-4 bg-gradient-to-br from-[#4a3c38] to-[#3A2E2A] rounded-2xl border border-[#5a4a44] p-4">
-                    <p className="text-xs text-[#8a7a72]">Bite &amp; Go</p>
-                    <p className="text-sm font-bold text-white mt-1">Disfruta la experiencia</p>
+                    <p className="text-sm font-bold text-white">Disfruta la experiencia</p>
                     <p className="text-[10px] text-[#8a7a72] mt-1">v1.0.0</p>
                 </div>
             </div>
