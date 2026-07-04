@@ -1,16 +1,15 @@
 import { useState } from "react";
 import { Header } from "./Header";
+import { Sidebar } from "./Sidebar";
 import { Outlet } from "react-router-dom";
 
 export const UserLayout = () => {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
     return (
-        <div className="min-h-screen bg-gray-50 flex flex-col overflow-x-hidden">
-            <Header
-                mobileMenuOpen={mobileMenuOpen}
-                onToggleMobileMenu={() => setMobileMenuOpen(prev => !prev)}
-            />
+        <div className="min-h-screen bg-gray-50 flex overflow-x-hidden">
+            <Sidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed((v) => !v)} />
 
             {mobileMenuOpen && (
                 <div
@@ -19,9 +18,15 @@ export const UserLayout = () => {
                 />
             )}
 
-            <main className="flex-1 w-full">
-                <Outlet />
-            </main>
+            <div className="flex-1 flex flex-col min-w-0">
+                <Header
+                    mobileMenuOpen={mobileMenuOpen}
+                    onToggleMobileMenu={() => setMobileMenuOpen(prev => !prev)}
+                />
+                <main className="flex-1 w-full">
+                    <Outlet />
+                </main>
+            </div>
         </div>
     );
 };

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { getMenuByRestaurant, getCategoriesByRestaurant, createOrder } from "../../../shared/api";
 import { showSuccess, showError } from "../../../shared/utils/toast";
-import { ArrowLeft, Plus, Minus } from "lucide-react";
+import { ArrowLeft, Plus, Minus, MapPin } from "lucide-react";
 
 export const MenuPage = () => {
     const { id } = useParams();
@@ -13,6 +13,7 @@ export const MenuPage = () => {
     const [loading, setLoading] = useState(true);
     const [ordering, setOrdering] = useState(false);
     const [serviceType, setServiceType] = useState("Comer aquí");
+    const [direccion, setDireccion] = useState("");
 
     useEffect(() => {
         const fetchData = async () => {
@@ -75,15 +76,21 @@ export const MenuPage = () => {
 
     const handleOrder = async () => {
         if (cart.length === 0) return;
+        if (serviceType === "Domicilio" && !direccion.trim()) {
+            showError("Ingresa la dirección de entrega para domicilio");
+            return;
+        }
         try {
             setOrdering(true);
             await createOrder({
                 id_restaurante: id,
                 tipo_servicio: serviceType,
+                direccion_entrega: serviceType === "Domicilio" ? direccion.trim() : undefined,
                 items: cart.map(({ id_producto, cantidad }) => ({ id_producto, cantidad })),
             });
             showSuccess("Pedido creado exitosamente");
             setCart([]);
+            setDireccion("");
         } catch (err) {
             showError(err.response?.data?.message || "Error al crear el pedido");
         } finally {
@@ -202,6 +209,18 @@ export const MenuPage = () => {
                             <option value="Para llevar">Para llevar</option>
                             <option value="Domicilio">Domicilio</option>
                         </select>
+                        {serviceType === "Domicilio" && (
+                            <div className="relative mb-3">
+                                <MapPin size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#E67E22]" />
+                                <input
+                                    type="text"
+                                    value={direccion}
+                                    onChange={(e) => setDireccion(e.target.value)}
+                                    placeholder="Dirección de entrega (calle, colonia, referencias...)"
+                                    className="w-full pl-9 pr-3 py-2 text-sm border border-[#E8D8C3] rounded-lg focus:ring-2 focus:ring-[#E67E22] outline-none"
+                                />
+                            </div>
+                        )}
                         <button
                             onClick={handleOrder}
                             disabled={ordering}
