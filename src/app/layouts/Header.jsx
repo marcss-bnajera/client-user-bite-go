@@ -82,7 +82,7 @@ export const Header = ({ mobileMenuOpen, onToggleMobileMenu }) => {
                 </div>
 
                 {isAuthenticated && (
-                    <div className="hidden md:flex items-center justify-center flex-1 gap-1 mx-4">
+                    <div className="hidden md:flex items-center justify-center gap-1 mx-6 max-w-md">
                         {navLinks.map((link) => {
                             const isActive = location.pathname === link.path ||
                                 (link.path !== "/restaurants" && location.pathname.startsWith(link.path));
