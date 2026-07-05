@@ -63,7 +63,7 @@ export const Header = ({ mobileMenuOpen, onToggleMobileMenu }) => {
 
     return (
         <nav className="bg-[#F5EFE6] shadow-sm border-b border-[#E8D8C3] sticky top-0 z-50">
-            <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 h-16 flex items-center">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 grid grid-cols-[auto_1fr_auto] items-center gap-4">
 
                 <div className="flex items-center shrink-0">
                     <button
@@ -82,7 +82,7 @@ export const Header = ({ mobileMenuOpen, onToggleMobileMenu }) => {
                 </div>
 
                 {isAuthenticated && (
-                    <div className="hidden md:flex items-center justify-center gap-1 mx-6 max-w-md">
+                    <div className="hidden md:flex items-center justify-center gap-1">
                         {navLinks.map((link) => {
                             const isActive = location.pathname === link.path ||
                                 (link.path !== "/restaurants" && location.pathname.startsWith(link.path));
@@ -104,7 +104,7 @@ export const Header = ({ mobileMenuOpen, onToggleMobileMenu }) => {
                     </div>
                 )}
 
-                <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 ml-auto">
+                <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                     {isAuthenticated && (
                         <div ref={searchRef} className="relative">
                             <button
