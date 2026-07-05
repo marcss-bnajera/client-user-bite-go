@@ -33,37 +33,33 @@ export const AvatarUser = () => {
         <div className="relative" ref={dropdownRef}>
             <button
                 onClick={toggleMenu}
-                className="w-10 h-10 rounded-full bg-[#E67E22] flex items-center justify-center cursor-pointer hover:bg-[#D35400] transition-colors"
+                className="w-10 h-10 rounded-full bg-[#E67E22] flex items-center justify-center cursor-pointer hover:bg-[#D35400] transition-colors overflow-hidden"
                 title={user?.username || "Mi cuenta"}
             >
                 {hasPicture ? (
                     <img
                         src={user.profilePicture}
                         alt={user.username}
-                        className="w-full h-full rounded-full object-cover"
+                        className="w-full h-full object-cover"
                         onError={(e) => { e.target.style.display = "none"; }}
                     />
                 ) : (
-                    <span className="text-white font-bold text-sm">
-                        {user?.username?.charAt(0)?.toUpperCase() || "U"}
-                    </span>
+                    <User size={20} className="text-white" />
                 )}
             </button>
             {open && (
                 <div className="absolute right-0 mt-2 w-56 bg-[#3A2E2A] border border-[#5a4a44] rounded-xl shadow-xl animate-fadeIn z-50 overflow-hidden">
                     <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-[#4a3c38] to-[#3A2E2A] border-b border-[#5a4a44]">
-                        <div className="w-10 h-10 rounded-full bg-[#E67E22] flex items-center justify-center shrink-0">
+                        <div className="w-10 h-10 rounded-full bg-[#E67E22] flex items-center justify-center shrink-0 overflow-hidden">
                             {hasPicture ? (
-                                <img src={user.profilePicture} alt={user.username} className="w-full h-full rounded-full object-cover" />
+                                <img src={user.profilePicture} alt={user.username} className="w-full h-full object-cover" />
                             ) : (
-                                <span className="text-white font-bold text-sm">
-                                    {user?.username?.charAt(0)?.toUpperCase() || "U"}
-                                </span>
+                                <User size={18} className="text-white" />
                             )}
                         </div>
                         <div className="min-w-0">
-                            <p className="font-semibold text-white truncate">{user?.username}</p>
-                            <p className="text-xs text-[#8a7a72] truncate">{user?.email}</p>
+                            <p className="font-semibold text-white truncate">{user?.username || "Usuario"}</p>
+                            <p className="text-xs text-[#8a7a72] truncate">{user?.email || ""}</p>
                         </div>
                     </div>
 
