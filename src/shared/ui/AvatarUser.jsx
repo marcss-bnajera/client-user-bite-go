@@ -27,7 +27,9 @@ export const AvatarUser = () => {
         navigate("/", { replace: true });
     };
 
-    const hasPicture = user?.profilePicture && user.profilePicture.trim() !== "";
+    const hasPicture = user?.profilePicture
+        && user.profilePicture.trim() !== ""
+        && !user.profilePicture.includes("default-avatar");
 
     return (
         <div className="relative" ref={dropdownRef}>

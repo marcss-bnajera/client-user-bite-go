@@ -2,7 +2,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../features/auth/store/authStore";
 import imgLogo from "../../assets/img/Bite&GoLogo.png";
 import { AvatarUser } from "../../shared/ui/AvatarUser";
-import { Menu, X, Search, ShoppingBag, CalendarDays, Star, User, LogOut } from "lucide-react";
+import { Menu, X, Search, ShoppingBag, CalendarDays, Star, LogOut } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { searchProducts } from "../../shared/api";
 
@@ -11,7 +11,6 @@ const navLinks = [
     { label: "Mis Pedidos", path: "/orders", icon: ShoppingBag },
     { label: "Mis Reservas", path: "/reservations", icon: CalendarDays },
     { label: "Mis Reseñas", path: "/reviews", icon: Star },
-    { label: "Mi Perfil", path: "/profile", icon: User },
 ];
 
 export const Header = ({ mobileMenuOpen, onToggleMobileMenu }) => {
