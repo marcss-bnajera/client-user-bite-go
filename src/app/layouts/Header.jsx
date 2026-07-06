@@ -62,9 +62,9 @@ export const Header = ({ mobileMenuOpen, onToggleMobileMenu }) => {
 
     return (
         <nav className="bg-[#F5EFE6] shadow-sm border-b border-[#E8D8C3] sticky top-0 z-50">
-            <div className="max-w-6xl mx-auto px-4 h-16 grid grid-cols-[auto_1fr_auto] items-center gap-4">
+            <div className="relative h-16 flex items-center px-4">
 
-                <div className="flex items-center shrink-0">
+                <div className="absolute left-4 flex items-center">
                     <button
                         onClick={onToggleMobileMenu}
                         className="p-2 rounded-xl hover:bg-[#E8D8C3] text-[#2B2B2B] transition-colors md:hidden"
@@ -81,7 +81,7 @@ export const Header = ({ mobileMenuOpen, onToggleMobileMenu }) => {
                 </div>
 
                 {isAuthenticated && (
-                    <div className="hidden md:flex items-center justify-center gap-1">
+                    <div className="absolute left-1/2 -translate-x-1/2 hidden md:flex items-center gap-1">
                         {navLinks.map((link) => {
                             const isActive = location.pathname === link.path ||
                                 (link.path !== "/restaurants" && location.pathname.startsWith(link.path));
@@ -103,7 +103,7 @@ export const Header = ({ mobileMenuOpen, onToggleMobileMenu }) => {
                     </div>
                 )}
 
-                <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+                <div className="absolute right-4 flex items-center gap-2 sm:gap-3">
                     {isAuthenticated && (
                         <div ref={searchRef} className="relative">
                             <button
