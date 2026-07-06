@@ -6,6 +6,8 @@ import {
     login as loginRequest
 } from "../../../shared/api";
 
+import { syncUser, getMe } from "../../../shared/api/user";
+
 
 export const useAuthStore = create(
     persist(
@@ -19,25 +21,6 @@ export const useAuthStore = create(
             isLoadingAuth: true,
             isAuthenticated: false,
 
-            checkAuth: () => {
-                const token = get().token;
-                const role = get().user?.role;
-                const clientRoles = ["Cliente"];
-                const isClient = clientRoles.includes(role);
-
-                if (token && !isClient) {
-                    set({
-                        user: null,
-                        token: null,
-                        refreshToken: null,
-                        expiresAt: null,
-                        isAuthenticated: false,
-                        isLoadingAuth: false,
-                        error: "No tienes permiso para acceder como cliente"
-                    })
-                }
-            },
-
             logout: () => {
                 set({
                     user: null,
@@ -45,6 +28,7 @@ export const useAuthStore = create(
                     refreshToken: null,
                     expiresAt: null,
                     isAuthenticated: false,
+                    isLoadingAuth: false,
                 })
             },
 
@@ -58,15 +42,6 @@ export const useAuthStore = create(
                     };
 
                     const { data } = await loginRequest(payload);
-
-                    const role = data?.userDetails?.role;
-                    const clientRoles = ["Cliente"];
-
-                    if (!clientRoles.includes(role)) {
-                        set({ loading: false, error: "No tienes permiso para acceder como cliente" });
-                        toast.error("No tienes permiso para acceder como cliente");
-                        return { success: false };
-                    }
 
                     set({
                         token: data.token,
@@ -82,6 +57,19 @@ export const useAuthStore = create(
                         error: null,
                     });
 
+                    try {
+                        await Promise.race([
+                            syncUser(),
+                            new Promise((_, reject) =>
+                                setTimeout(() => reject(new Error('sync_timeout')), 5000)
+                            )
+                        ]);
+                    } catch {
+                        get().logout();
+                        toast.error("Tu cuenta no está configurada. Contacta soporte.");
+                        return { success: false, error: "Sync failed" };
+                    }
+
                     toast.success("Bienvenido a Bite & Go");
                     return { success: true };
 
@@ -90,6 +78,39 @@ export const useAuthStore = create(
                     set({ error: errorMessage, loading: false });
                     toast.error(errorMessage);
                     return { success: false, error: errorMessage };
+                }
+            },
+
+            syncSession: async () => {
+                const token = get().token;
+                if (!token) {
+                    set({ isLoadingAuth: false });
+                    return;
+                }
+                try {
+                    await Promise.race([
+                        syncUser(),
+                        new Promise((_, reject) =>
+                            setTimeout(() => reject(new Error('sync_timeout')), 5000)
+                        )
+                    ]);
+                } catch {
+                    get().logout();
+                    toast.error("Sesión expirada. Inicia sesión de nuevo.");
+                } finally {
+                    set({ isLoadingAuth: false });
+                }
+            },
+
+            verifySession: async () => {
+                const token = get().token;
+                const isAuth = get().isAuthenticated;
+                if (!token || !isAuth) return;
+                try {
+                    await getMe();
+                } catch {
+                    get().logout();
+                    toast.error("Tu cuenta ya no existe. Inicia sesión de nuevo.");
                 }
             },
         }),
