@@ -1,30 +1,45 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { getProfile, uploadProfilePhoto, deleteProfilePhoto } from "../../../shared/api";
 import { useAuthStore } from "../../auth/store/authStore";
-import { updateUser, getUserById } from "../../../shared/api";
 import { showSuccess, showError } from "../../../shared/utils/toast";
-import { User, Phone, MapPin, Save } from "lucide-react";
+import { User, Phone, AtSign, Camera, Loader2, X } from "lucide-react";
 import { useForm } from "react-hook-form";
 
 export const ProfilePage = () => {
-    const { user } = useAuthStore();
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
+    const [uploading, setUploading] = useState(false);
+    const [imgFailed, setImgFailed] = useState(false);
+    const fileInputRef = useRef(null);
+    const user = useAuthStore((s) => s.user);
 
-    const { register, handleSubmit, formState: { errors }, reset } = useForm();
+    const { register, handleSubmit, reset } = useForm();
+
+    const isValidCloudinaryUrl = (url) =>
+        url && url.trim() !== "" && url.includes("res.cloudinary.com") && !url.includes("default-avatar");
+
+    const avatarSrc = isValidCloudinaryUrl(user?.profilePicture)
+        ? user.profilePicture
+        : isValidCloudinaryUrl(profile?.profilePicture)
+            ? profile.profilePicture
+            : null;
+    const showAvatar = avatarSrc && !imgFailed;
+
+    useEffect(() => { setImgFailed(false); }, [avatarSrc]);
 
     useEffect(() => {
         const fetchProfile = async () => {
             try {
-                if (user?.id) {
-                    const { data } = await getUserById(user.id);
-                    setProfile(data.user);
-                    reset({
-                        nombre: data.user.nombre,
-                        telefono: data.user.telefono || "",
-                        direccion: data.user.direccion || "",
-                    });
-                }
+                const { data } = await getProfile();
+                const p = data.data;
+                setProfile(p);
+                reset({
+                    nombre: p.name || "",
+                    apellido: p.surname || "",
+                    username: p.username || "",
+                    email: p.email || "",
+                    telefono: p.phone || "",
+                });
             } catch (err) {
                 console.error("Error", err);
             } finally {
@@ -32,21 +47,65 @@ export const ProfilePage = () => {
             }
         };
         fetchProfile();
-    }, [user?.id, reset]);
+    }, [reset]);
 
-    const onSubmit = async (data) => {
+    const handlePhotoClick = () => {
+        fileInputRef.current?.click();
+    };
+
+    const handleFileChange = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const allowed = ["image/jpeg", "image/png", "image/jpg", "image/webp", "image/avif"];
+        if (!allowed.includes(file.type)) {
+            showError("Formato no válido. Usa JPG, PNG o WebP");
+            return;
+        }
+        if (file.size > 5 * 1024 * 1024) {
+            showError("La imagen no puede superar 5 MB");
+            return;
+        }
+
         try {
-            setSaving(true);
-            await updateUser(user.id, {
-                nombre: data.nombre,
-                telefono: data.telefono,
-                direccion: data.direccion,
-            });
-            showSuccess("Perfil actualizado");
+            setUploading(true);
+            const formData = new FormData();
+            formData.append("foto", file);
+
+            const { data } = await uploadProfilePhoto(formData);
+
+            if (data.success) {
+                setProfile((prev) => ({ ...prev, profilePicture: data.foto_url }));
+                useAuthStore.setState((state) => ({
+                    user: { ...state.user, profilePicture: data.foto_url },
+                }));
+                showSuccess("Foto de perfil actualizada");
+            }
         } catch (err) {
-            showError(err.response?.data?.message || "Error al actualizar");
+            showError(err.response?.data?.message || "Error al subir la imagen");
         } finally {
-            setSaving(false);
+            setUploading(false);
+            if (fileInputRef.current) fileInputRef.current.value = "";
+        }
+    };
+
+    const onSubmit = async () => {
+        showSuccess("Perfil actualizado");
+    };
+
+    const handleDeletePhoto = async (e) => {
+        e.stopPropagation();
+        try {
+            const { data } = await deleteProfilePhoto();
+            if (data.success) {
+                setProfile((prev) => ({ ...prev, profilePicture: "" }));
+                useAuthStore.setState((state) => ({
+                    user: { ...state.user, profilePicture: "" },
+                }));
+                showSuccess("Foto de perfil eliminada");
+            }
+        } catch (err) {
+            showError(err.response?.data?.message || "Error al eliminar la imagen");
         }
     };
 
@@ -68,26 +127,98 @@ export const ProfilePage = () => {
 
                 <div className="bg-white rounded-xl border border-[#E8D8C3] p-6">
                     <div className="text-center mb-6">
-                        <div className="w-20 h-20 rounded-full bg-[#F5EFE6] flex items-center justify-center mx-auto mb-3">
-                            <User size={32} className="text-[#E67E22]" />
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="image/jpeg,image/png,image/jpg,image/webp,image/avif"
+                            className="hidden"
+                            onChange={handleFileChange}
+                        />
+                        <div className="relative w-20 h-20 mx-auto mb-3">
+                            <div
+                                onClick={handlePhotoClick}
+                                className="w-20 h-20 rounded-full bg-[#F5EFE6] flex items-center justify-center overflow-hidden cursor-pointer group"
+                            >
+                                {showAvatar ? (
+                                    <img src={avatarSrc} alt={profile?.username} className="w-full h-full object-cover" onError={() => setImgFailed(true)} />
+                                ) : (
+                                    <User size={32} className="text-[#E67E22]" />
+                                )}
+                                <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    {uploading ? (
+                                        <Loader2 size={20} className="text-white animate-spin" />
+                                    ) : (
+                                        <>
+                                            <Camera size={18} className="text-white" />
+                                            {showAvatar && (
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => { e.stopPropagation(); handleDeletePhoto(e); }}
+                                                    className="w-7 h-7 rounded-full bg-white/20 hover:bg-red-500/80 flex items-center justify-center transition-colors"
+                                                    title="Eliminar foto"
+                                                >
+                                                    <X size={14} className="text-white" />
+                                                </button>
+                                            )}
+                                        </>
+                                    )}
+                                </div>
+                            </div>
                         </div>
+                        <p className="font-bold text-[#2B2B2B]">@{profile?.username}</p>
                         <p className="text-sm text-[#6B6B6B]">{profile?.email}</p>
                         <span className="inline-block mt-1 px-3 py-1 bg-[#F5EFE6] text-[#E67E22] text-xs font-semibold rounded-full">
-                            {profile?.rol}
+                            {profile?.role}
                         </span>
                     </div>
 
                     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-800 mb-1.5">
+                                    <User size={14} className="inline mr-1" />
+                                    Nombre
+                                </label>
+                                <input
+                                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E67E22] outline-none"
+                                    {...register("nombre")}
+                                    readOnly
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-800 mb-1.5">
+                                    <User size={14} className="inline mr-1" />
+                                    Apellido
+                                </label>
+                                <input
+                                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E67E22] outline-none"
+                                    {...register("apellido")}
+                                    readOnly
+                                />
+                            </div>
+                        </div>
+
                         <div>
                             <label className="block text-sm font-medium text-gray-800 mb-1.5">
-                                <User size={14} className="inline mr-1" />
-                                Nombre
+                                <AtSign size={14} className="inline mr-1" />
+                                Usuario
                             </label>
                             <input
                                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E67E22] outline-none"
-                                {...register("nombre", { required: "El nombre es obligatorio" })}
+                                {...register("username")}
+                                readOnly
                             />
-                            {errors.nombre && <p className="text-red-500 text-xs mt-1">{errors.nombre.message}</p>}
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-800 mb-1.5">
+                                Correo electrónico
+                            </label>
+                            <input
+                                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E67E22] outline-none"
+                                {...register("email")}
+                                readOnly
+                            />
                         </div>
 
                         <div>
@@ -98,28 +229,13 @@ export const ProfilePage = () => {
                             <input
                                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E67E22] outline-none"
                                 {...register("telefono")}
+                                readOnly
                             />
                         </div>
 
-                        <div>
-                            <label className="block text-sm font-medium text-gray-800 mb-1.5">
-                                <MapPin size={14} className="inline mr-1" />
-                                Dirección
-                            </label>
-                            <input
-                                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E67E22] outline-none"
-                                {...register("direccion")}
-                            />
-                        </div>
-
-                        <button
-                            type="submit"
-                            disabled={saving}
-                            className="w-full bg-[#E67E22] hover:bg-[#D35400] text-white font-medium py-2.5 px-4 rounded-lg transition-colors duration-200 text-sm disabled:opacity-60 flex items-center justify-center gap-2"
-                        >
-                            <Save size={16} />
-                            {saving ? "Guardando..." : "Guardar Cambios"}
-                        </button>
+                        <p className="text-xs text-[#6B6B6B] text-center">
+                            Los datos del perfil se gestionan desde el servicio de autenticación.
+                        </p>
                     </form>
                 </div>
             </div>
