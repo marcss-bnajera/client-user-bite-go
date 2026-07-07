@@ -1,3 +1,3 @@
 export * from './auth';
 export * from './user';
-export { axiosAuth, axiosUser, handleRefreshToken } from './api';
+export { axiosAuth, axiosUser } from './api';

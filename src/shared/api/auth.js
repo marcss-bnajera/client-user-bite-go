@@ -10,6 +10,10 @@ export const register = async (data) => {
     });
 };
 
+export const getProfile = async () => {
+    return await axiosAuth.get("/api/v1/Auth/profile");
+};
+
 export const forgotPassword = async (email) => {
     return await axiosAuth.post("/api/v1/Auth/forgot-password", { email });
 };
