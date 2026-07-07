@@ -1,9 +1,183 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import { getRestaurantById, getMenuByRestaurant, getEventsByRestaurant, getRestaurantReviews, createReview } from "../../../shared/api";
-import { MapPin, Clock, Phone, Mail, ArrowLeft, UtensilsCrossed, CalendarDays, Star, ShoppingBag, Send } from "lucide-react";
+import { getRestaurantById, getMenuByRestaurant, getEventsByRestaurant, getRestaurantReviews, getEligibleForReview, createReview } from "../../../shared/api";
+import { MapPin, Clock, Phone, Mail, ArrowLeft, UtensilsCrossed, CalendarDays, Star, ShoppingBag, Send, ChevronDown, ChevronUp, X, ShoppingBag as BagIcon, Users, Calendar, Hash, Truck, Utensils } from "lucide-react";
 import { useAuthStore } from "../../auth/store/authStore";
 import { showSuccess, showError } from "../../../shared/utils/toast";
+
+const ReviewPicker = ({ eligibleItems, onSelect, onClose }) => {
+    const [tab, setTab] = useState("orders");
+
+    const serviceIcon = {
+        "Comer aquí": <Utensils size={13} />,
+        "Domicilio": <Truck size={13} />,
+        "Para llevar": <BagIcon size={13} />,
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm">
+            <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col border border-[#E8D8C3]">
+                <div className="flex items-center justify-between px-5 py-4 border-b border-[#E8D8C3]">
+                    <div className="flex items-center gap-2">
+                        <Star size={18} className="text-[#E67E22]" />
+                        <h3 className="font-extrabold text-[#2B2B2B] text-base">¿Qué querés calificar?</h3>
+                    </div>
+                    <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 text-[#6B6B6B] transition-colors">
+                        <X size={18} />
+                    </button>
+                </div>
+
+                <div className="flex border-b border-[#E8D8C3]">
+                    <button
+                        onClick={() => setTab("orders")}
+                        className={`flex-1 flex items-center justify-center gap-1.5 px-4 py-3 text-sm font-semibold border-b-2 transition-colors ${
+                            tab === "orders" ? "border-[#E67E22] text-[#E67E22]" : "border-transparent text-[#6B6B6B]"
+                        }`}
+                    >
+                        <ShoppingBag size={14} />
+                        Pedidos ({eligibleItems.orders.filter(o => !o.reviewed).length})
+                    </button>
+                    <button
+                        onClick={() => setTab("reservations")}
+                        className={`flex-1 flex items-center justify-center gap-1.5 px-4 py-3 text-sm font-semibold border-b-2 transition-colors ${
+                            tab === "reservations" ? "border-[#E67E22] text-[#E67E22]" : "border-transparent text-[#6B6B6B]"
+                        }`}
+                    >
+                        <CalendarDays size={14} />
+                        Reservaciones ({eligibleItems.reservations.filter(r => !r.reviewed).length})
+                    </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto px-5 py-4">
+                    {tab === "orders" && (
+                        <>
+                            {eligibleItems.orders.filter(o => !o.reviewed).length === 0 ? (
+                                <div className="text-center py-10">
+                                    <ShoppingBag size={36} className="mx-auto text-gray-300 mb-2" />
+                                    <p className="text-[#6B6B6B] text-sm">No hay pedidos para calificar</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-2">
+                                    {eligibleItems.orders.filter(o => !o.reviewed).map((o) => (
+                                        <button
+                                            key={o._id}
+                                            type="button"
+                                            onClick={() => onSelect({ type: "order", ...o })}
+                                            className="w-full text-left p-3 rounded-xl border border-[#E8D8C3] hover:border-[#E67E22] hover:bg-[#F5EFE6]/50 transition-all group"
+                                        >
+                                            <div className="flex items-start justify-between gap-2">
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                                                        o.estado === "Entregado" ? "bg-green-100" : "bg-red-100"
+                                                    }`}>
+                                                        {o.estado === "Entregado"
+                                                            ? <ShoppingBag size={14} className="text-green-600" />
+                                                            : <X size={14} className="text-red-500" />}
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <p className="font-bold text-[#2B2B2B] text-sm group-hover:text-[#E67E22] transition-colors">
+                                                            Pedido #{o._id.slice(-6).toUpperCase()}
+                                                        </p>
+                                                        <p className="text-[11px] text-[#6B6B6B]">
+                                                            {new Date(o.createdAt).toLocaleDateString("es-GT", { day: "numeric", month: "short", year: "numeric" })}
+                                                            {" · "}
+                                                            <span className={o.estado === "Entregado" ? "text-green-600 font-semibold" : "text-red-500 font-semibold"}>
+                                                                {o.estado}
+                                                            </span>
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <span className="font-bold text-[#2B2B2B] text-sm shrink-0">Q{o.total?.toFixed(2)}</span>
+                                            </div>
+                                            <div className="flex flex-wrap items-center gap-2 mt-2 text-[11px] text-[#6B6B6B]">
+                                                {o.tipo_servicio && (
+                                                    <span className="flex items-center gap-1 bg-[#F5EFE6] px-2 py-0.5 rounded-full">
+                                                        {serviceIcon[o.tipo_servicio]} {o.tipo_servicio}
+                                                    </span>
+                                                )}
+                                                {o.mesero && (
+                                                    <span className="flex items-center gap-1 bg-[#F5EFE6] px-2 py-0.5 rounded-full">
+                                                        <Utensils size={10} /> {o.mesero}
+                                                    </span>
+                                                )}
+                                                {o.repartidor && (
+                                                    <span className="flex items-center gap-1 bg-[#F5EFE6] px-2 py-0.5 rounded-full">
+                                                        <Truck size={10} /> {o.repartidor}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {o.items?.length > 0 && (
+                                                <p className="text-[11px] text-[#6B6B6B] mt-1.5 truncate">
+                                                    {o.items.map(i => `${i.nombre} x${i.cantidad}`).join(", ")}
+                                                </p>
+                                            )}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </>
+                    )}
+
+                    {tab === "reservations" && (
+                        <>
+                            {eligibleItems.reservations.filter(r => !r.reviewed).length === 0 ? (
+                                <div className="text-center py-10">
+                                    <CalendarDays size={36} className="mx-auto text-gray-300 mb-2" />
+                                    <p className="text-[#6B6B6B] text-sm">No hay reservaciones para calificar</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-2">
+                                    {eligibleItems.reservations.filter(r => !r.reviewed).map((r) => (
+                                        <button
+                                            key={r._id}
+                                            type="button"
+                                            onClick={() => onSelect({ type: "reservation", ...r })}
+                                            className="w-full text-left p-3 rounded-xl border border-[#E8D8C3] hover:border-[#E67E22] hover:bg-[#F5EFE6]/50 transition-all group"
+                                        >
+                                            <div className="flex items-center gap-2 min-w-0">
+                                                <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
+                                                    <CalendarDays size={14} className="text-blue-600" />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className="font-bold text-[#2B2B2B] text-sm group-hover:text-[#E67E22] transition-colors">
+                                                        Reservación
+                                                    </p>
+                                                    <p className="text-[11px] text-[#6B6B6B]">
+                                                        {new Date(r.fecha_reserva).toLocaleDateString("es-GT", { day: "numeric", month: "long", year: "numeric" })}
+                                                        {" a las "}
+                                                        {new Date(r.fecha_reserva).toLocaleTimeString("es-GT", { hour: "2-digit", minute: "2-digit" })}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="flex flex-wrap items-center gap-2 mt-2 text-[11px] text-[#6B6B6B]">
+                                                <span className="flex items-center gap-1 bg-[#F5EFE6] px-2 py-0.5 rounded-full">
+                                                    <Users size={10} /> {r.cantidad_personas} personas
+                                                </span>
+                                                {r.mesa_numero && (
+                                                    <span className="flex items-center gap-1 bg-[#F5EFE6] px-2 py-0.5 rounded-full">
+                                                        <Hash size={10} /> Mesa {r.mesa_numero}
+                                                    </span>
+                                                )}
+                                                {r.sucursal_nombre && (
+                                                    <span className="flex items-center gap-1 bg-[#F5EFE6] px-2 py-0.5 rounded-full">
+                                                        <MapPin size={10} /> {r.sucursal_nombre}
+                                                    </span>
+                                                )}
+                                                <span className="flex items-center gap-1 bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold">
+                                                    Asistió
+                                                </span>
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
 
 export const RestaurantDetailPage = () => {
     const { id } = useParams();
@@ -14,10 +188,14 @@ export const RestaurantDetailPage = () => {
     const [reviews, setReviews] = useState([]);
     const [activeTab, setActiveTab] = useState("menu");
     const [loading, setLoading] = useState(true);
+    const [selectedSucursal, setSelectedSucursal] = useState(null);
 
     const [reviewRating, setReviewRating] = useState(0);
     const [reviewComment, setReviewComment] = useState("");
     const [submittingReview, setSubmittingReview] = useState(false);
+    const [eligibleItems, setEligibleItems] = useState({ orders: [], reservations: [] });
+    const [selectedItem, setSelectedItem] = useState(null);
+    const [showReviewPicker, setShowReviewPicker] = useState(false);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -33,6 +211,12 @@ export const RestaurantDetailPage = () => {
                 setMenu(menuRes.data.menu || []);
                 setEvents(eventsRes.data.eventos || []);
                 setReviews(revRes.data.reviews || []);
+
+                const rest = restRes.data.restaurant;
+                if (rest?.tiene_sucursales && rest.sucursales?.length > 0) {
+                    const activa = rest.sucursales.find((s) => s.activo !== false);
+                    if (activa) setSelectedSucursal(activa._id);
+                }
             } catch (err) {
                 console.error("Error", err);
             } finally {
@@ -42,24 +226,65 @@ export const RestaurantDetailPage = () => {
         fetchData();
     }, [id]);
 
+    useEffect(() => {
+        setSelectedItem(null);
+    }, [selectedSucursal]);
+
+    useEffect(() => {
+        if (activeTab === "reviews") {
+            const params = selectedSucursal ? { id_sucursal: selectedSucursal } : {};
+            getRestaurantReviews(id, params)
+                .then((res) => setReviews(res.data.reviews || []))
+                .catch(() => {});
+        }
+    }, [activeTab, id, selectedSucursal]);
+
+    useEffect(() => {
+        if (activeTab === "reviews" && user) {
+            const eligibleParams = selectedSucursal ? { id_sucursal: selectedSucursal } : {};
+            getEligibleForReview(id, eligibleParams)
+                .then((res) => setEligibleItems({ orders: res.data.orders || [], reservations: res.data.reservations || [] }))
+                .catch(() => {});
+        }
+    }, [activeTab, id, user, selectedSucursal]);
+
     const handleSubmitReview = async (e) => {
         e.preventDefault();
         if (reviewRating === 0) {
             showError("Selecciona una calificación");
             return;
         }
+        if (!selectedItem) {
+            showError("Selecciona un pedido o reservación para calificar");
+            return;
+        }
         try {
             setSubmittingReview(true);
-            await createReview({
+            const payload = {
                 id_restaurante: id,
                 calificacion: reviewRating,
                 comentario: reviewComment,
-            });
+            };
+            if (selectedItem.type === "order") {
+                payload.id_pedido = selectedItem._id;
+                if (selectedItem.id_sucursal) payload.id_sucursal = selectedItem.id_sucursal;
+            } else {
+                payload.id_reservacion = selectedItem._id;
+                if (selectedItem.id_sucursal) payload.id_sucursal = selectedItem.id_sucursal;
+            }
+            await createReview(payload);
             showSuccess("Reseña publicada");
             setReviewRating(0);
             setReviewComment("");
-            const revRes = await getRestaurantReviews(id);
+            setSelectedItem(null);
+            const reviewParams = selectedSucursal ? { id_sucursal: selectedSucursal } : {};
+            const eligibleParams = selectedSucursal ? { id_sucursal: selectedSucursal } : {};
+            const [revRes, eligibleRes] = await Promise.all([
+                getRestaurantReviews(id, reviewParams),
+                getEligibleForReview(id, eligibleParams),
+            ]);
             setReviews(revRes.data.reviews || []);
+            setEligibleItems({ orders: eligibleRes.data.orders || [], reservations: eligibleRes.data.reservations || [] });
         } catch (err) {
             showError(err.response?.data?.message || "Error al publicar reseña");
         } finally {
@@ -140,6 +365,28 @@ export const RestaurantDetailPage = () => {
                 </div>
             </div>
 
+            {restaurant.tiene_sucursales && restaurant.sucursales?.length > 0 && (
+                <div className="max-w-4xl mx-auto px-4 pt-5">
+                    <p className="text-xs font-bold text-[#6B6B6B] uppercase tracking-widest mb-2">Selecciona una sucursal</p>
+                    <div className="flex gap-2 overflow-x-auto pb-2">
+                        {restaurant.sucursales.filter(s => s.activo !== false).map((s) => (
+                            <button
+                                key={s._id}
+                                onClick={() => setSelectedSucursal(s._id)}
+                                className={`shrink-0 px-4 py-2.5 rounded-xl border text-sm font-semibold transition-colors text-left ${
+                                    selectedSucursal === s._id
+                                        ? "bg-[#E67E22] text-white border-[#E67E22]"
+                                        : "bg-white text-[#6B6B6B] border-[#E8D8C3] hover:border-[#E67E22]"
+                                }`}
+                            >
+                                <span className="block font-bold">{s.nombre}</span>
+                                <span className="block text-xs opacity-75 mt-0.5">{s.direccion?.texto}</span>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             <div className="max-w-4xl mx-auto px-4">
                 <div className="flex gap-1 border-b border-[#E8D8C3] -mb-px">
                     {tabs.map((tab) => (
@@ -188,7 +435,7 @@ export const RestaurantDetailPage = () => {
                             ))
                         )}
                         <Link
-                            to={`/restaurants/${id}/menu`}
+                            to={`/restaurants/${id}/menu${selectedSucursal ? `?id_sucursal=${selectedSucursal}` : ""}`}
                             className="block text-center bg-[#E67E22] text-white py-3 rounded-xl font-bold hover:bg-[#D35400] transition-colors mt-6"
                         >
                             <ShoppingBag size={18} className="inline mr-2" />
@@ -228,13 +475,42 @@ export const RestaurantDetailPage = () => {
                                 <p className="text-3xl font-extrabold text-[#E67E22]">
                                     {(reviews.reduce((acc, r) => acc + r.calificacion, 0) / reviews.length).toFixed(1)}
                                 </p>
-                                <p className="text-sm text-[#6B6B6B]">Promedio de {reviews.length} reseñas</p>
+                                <p className="text-sm text-[#6B6B6B]">
+                                    Promedio de {reviews.length} reseñas
+                                    {selectedSucursal && restaurant?.sucursales && (() => {
+                                        const suc = restaurant.sucursales.find(s => s._id === selectedSucursal);
+                                        return suc ? <> de <span className="font-semibold text-[#2B2B2B]">{suc.nombre}</span></> : null;
+                                    })()}
+                                </p>
                             </div>
                         )}
 
                         {user && (
                             <form onSubmit={handleSubmitReview} className="bg-white rounded-xl border border-[#E8D8C3] p-4">
                                 <h3 className="font-bold text-[#2B2B2B] mb-3">Escribir reseña</h3>
+                                {eligibleItems.orders.length === 0 && eligibleItems.reservations.length === 0 ? (
+                                    <p className="text-sm text-[#6B6B6B] py-2">No tenés pedidos o reservaciones para calificar en este restaurante.</p>
+                                ) : (
+                                    <div className="mb-3">
+                                        <label className="block text-xs font-semibold text-[#6B6B6B] mb-1">¿Qué querés calificar?</label>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowReviewPicker(true)}
+                                            className="w-full flex items-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded-lg text-left hover:border-[#E67E22] transition-colors bg-white"
+                                        >
+                                            <Star size={14} className="text-[#E67E22] shrink-0" />
+                                            {selectedItem ? (
+                                                <span className="font-semibold text-[#2B2B2B] truncate">
+                                                    {selectedItem.type === "order"
+                                                        ? `Pedido #${selectedItem._id.slice(-6).toUpperCase()}`
+                                                        : `Reservación ${new Date(selectedItem.fecha_reserva).toLocaleDateString("es-GT")}`}
+                                                </span>
+                                            ) : (
+                                                <span className="text-[#A0A0A0]">Seleccionar pedido o reservación...</span>
+                                            )}
+                                        </button>
+                                    </div>
+                                )}
                                 <div className="flex items-center gap-1 mb-3">
                                     {[1, 2, 3, 4, 5].map((star) => (
                                         <button
@@ -260,7 +536,7 @@ export const RestaurantDetailPage = () => {
                                 />
                                 <button
                                     type="submit"
-                                    disabled={submittingReview || reviewRating === 0}
+                                    disabled={submittingReview || reviewRating === 0 || !selectedItem}
                                     className="mt-2 bg-[#E67E22] hover:bg-[#D35400] text-white px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
                                 >
                                     <Send size={14} />
@@ -284,15 +560,36 @@ export const RestaurantDetailPage = () => {
                                         ))}
                                     </div>
                                     <p className="text-sm text-[#2B2B2B]">{review.comentario}</p>
-                                    <p className="text-xs text-[#6B6B6B] mt-2">
-                                        {new Date(review.createdAt).toLocaleDateString("es-GT")}
-                                    </p>
+                                    <div className="flex items-center justify-between mt-2">
+                                        <p className="text-xs text-[#6B6B6B]">
+                                            {new Date(review.createdAt).toLocaleDateString("es-GT")}
+                                        </p>
+                                        {review.id_sucursal && restaurant?.tiene_sucursales && restaurant?.sucursales && (() => {
+                                            const suc = restaurant.sucursales.find(s => s._id === review.id_sucursal);
+                                            return suc ? (
+                                                <span className="text-[11px] text-[#E67E22] bg-[#F5EFE6] px-2 py-0.5 rounded-full font-semibold">
+                                                    {suc.nombre}
+                                                </span>
+                                            ) : null;
+                                        })()}
+                                    </div>
                                 </div>
                             ))
                         )}
                     </div>
                 )}
             </div>
+
+            {showReviewPicker && (
+                <ReviewPicker
+                    eligibleItems={eligibleItems}
+                    onSelect={(item) => {
+                        setSelectedItem(item);
+                        setShowReviewPicker(false);
+                    }}
+                    onClose={() => setShowReviewPicker(false)}
+                />
+            )}
         </div>
     );
 };
