@@ -1,4 +1,5 @@
 import axios from 'axios';
+import toast from 'react-hot-toast';
 import { useAuthStore } from '../../features/auth/store/authStore';
 
 const axiosAuth = axios.create({
@@ -33,6 +34,8 @@ axiosUser.interceptors.request.use((config) => {
     return config;
 });
 
+let rateLimitToastShown = false;
+
 const handleAuthError = (_error) => {
     const status = _error.response?.status;
     if (status === 401) {
@@ -42,6 +45,11 @@ const handleAuthError = (_error) => {
         }
     }
     if (status === 429) {
+        if (!rateLimitToastShown) {
+            rateLimitToastShown = true;
+            toast.error("Servidor saturado. Espera un momento e intenta de nuevo.");
+            setTimeout(() => { rateLimitToastShown = false; }, 10000);
+        }
         return Promise.resolve(undefined);
     }
     return Promise.reject(_error);
