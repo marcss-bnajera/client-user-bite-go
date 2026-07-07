@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { getMyOrders, cancelOrder } from "../../../shared/api";
 import { showConfirmToast } from "../../../shared/utils/confirmToast";
 import { showSuccess, showError } from "../../../shared/utils/toast";
-import { ShoppingBag, Clock, CheckCircle, XCircle, ChevronRight } from "lucide-react";
+import { useAuthStore } from "../../auth/store/authStore";
+import { ShoppingBag, Clock, CheckCircle, XCircle, ChevronRight, RotateCcw } from "lucide-react";
 
 const statusConfig = {
     Pendiente: { color: "bg-yellow-100 text-yellow-700", icon: Clock },
@@ -20,26 +21,37 @@ export const OrdersPage = () => {
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [refreshKey, setRefreshKey] = useState(0);
+    const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+    const mountedRef = useRef(true);
+
+    const fetchOrders = useCallback(async (silent = false) => {
+        try {
+            if (!silent) setLoading(true);
+            const { data } = await getMyOrders({ page, limit: 10 });
+            if (mountedRef.current) {
+                setOrders(data.orders || []);
+                setTotalPages(data.totalPages || 1);
+            }
+        } catch {
+            // silencioso en polling, el 429 ya se resuelve con undefined
+        } finally {
+            if (mountedRef.current && !silent) setLoading(false);
+        }
+    }, [page]);
 
     useEffect(() => {
-        let cancelled = false;
-        const fetchOrders = async () => {
-            try {
-                setLoading(true);
-                const { data } = await getMyOrders({ page, limit: 10 });
-                if (!cancelled) {
-                    setOrders(data.orders || []);
-                    setTotalPages(data.totalPages || 1);
-                }
-            } catch (err) {
-                console.error("Error", err);
-            } finally {
-                if (!cancelled) setLoading(false);
-            }
-        };
-        fetchOrders();
-        return () => { cancelled = true; };
-    }, [page, refreshKey]);
+        mountedRef.current = true;
+        fetchOrders(false);
+        return () => { mountedRef.current = false; };
+    }, [fetchOrders, refreshKey]);
+
+    useEffect(() => {
+        if (!isAuthenticated) return;
+        const interval = setInterval(() => {
+            if (document.visibilityState === "visible") fetchOrders(true);
+        }, 8000);
+        return () => clearInterval(interval);
+    }, [isAuthenticated, fetchOrders]);
 
     const handleCancel = (orderId) => {
         showConfirmToast({
@@ -95,6 +107,11 @@ export const OrdersPage = () => {
                                             <h3 className="font-bold text-[#2B2B2B]">
                                                 {order.id_restaurante?.nombre || "Restaurante"}
                                             </h3>
+                                            {order.id_sucursal && order.id_restaurante?.sucursales?.length > 0 && (
+                                                <p className="text-xs text-[#E67E22] font-semibold mt-0.5">
+                                                    {order.id_restaurante.sucursales.find(s => s._id === order.id_sucursal)?.nombre || "Sucursal"}
+                                                </p>
+                                            )}
                                             <p className="text-sm text-[#6B6B6B]">
                                                 {order.items?.length} {order.items?.length === 1 ? "producto" : "productos"} • {order.tipo_servicio}
                                             </p>
@@ -127,6 +144,15 @@ export const OrdersPage = () => {
                                                 Ver detalle
                                                 <ChevronRight size={14} />
                                             </Link>
+                                            {order.estado === "Entregado" && (
+                                                <Link
+                                                    to={`/restaurants/${order.id_restaurante?._id}/menu?repeat=${order._id}&items=${encodeURIComponent(JSON.stringify(order.items?.map(i => ({ id_producto: i.id_producto, nombre: i.nombre_historico, precio: i.precio_historico, cantidad: i.cantidad }))))}`}
+                                                    className="flex items-center gap-1 text-xs text-[#A8D5BA] hover:text-green-700 font-semibold"
+                                                >
+                                                    <RotateCcw size={12} />
+                                                    Repetir
+                                                </Link>
+                                            )}
                                         </div>
                                     </div>
                                 </div>

@@ -58,12 +58,22 @@ export const useAuthStore = create(
                     });
 
                     try {
-                        await Promise.race([
+                        const syncRes = await Promise.race([
                             syncUser(),
                             new Promise((_, reject) =>
                                 setTimeout(() => reject(new Error('sync_timeout')), 5000)
                             )
                         ]);
+                        const syncData = syncRes?.data?.user;
+                        if (syncData) {
+                            set((state) => ({
+                                user: {
+                                    ...state.user,
+                                    profilePicture: syncData.foto_url || state.user.profilePicture,
+                                    email: syncData.email || state.user.email,
+                                },
+                            }));
+                        }
                     } catch {
                         get().logout();
                         toast.error("Tu cuenta no está configurada. Contacta soporte.");
@@ -88,12 +98,22 @@ export const useAuthStore = create(
                     return;
                 }
                 try {
-                    await Promise.race([
+                    const syncRes = await Promise.race([
                         syncUser(),
                         new Promise((_, reject) =>
                             setTimeout(() => reject(new Error('sync_timeout')), 5000)
                         )
                     ]);
+                    const syncData = syncRes?.data?.user;
+                    if (syncData) {
+                        set((state) => ({
+                            user: {
+                                ...state.user,
+                                profilePicture: syncData.foto_url || state.user.profilePicture,
+                                email: syncData.email || state.user.email,
+                            },
+                        }));
+                    }
                 } catch {
                     get().logout();
                     toast.error("Sesión expirada. Inicia sesión de nuevo.");

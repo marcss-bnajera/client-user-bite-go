@@ -1,27 +1,51 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
-import { getMyOrders } from "../../../shared/api";
-import { ArrowLeft } from "lucide-react";
+import { getOrderById } from "../../../shared/api";
+import { ArrowLeft, Check, RotateCcw } from "lucide-react";
+import { showSuccess } from "../../../shared/utils/toast";
+import { useAuthStore } from "../../auth/store/authStore";
+
+const ORDER_STEPS = ["Pendiente", "Preparacion", "Listo", "Servido", "Entregado"];
 
 export const OrderDetailPage = () => {
     const { id } = useParams();
     const [order, setOrder] = useState(null);
     const [loading, setLoading] = useState(true);
+    const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+    const mountedRef = useRef(true);
+
+    const fetchOrder = useCallback(async (silent = false) => {
+        try {
+            if (!silent) setLoading(true);
+            const { data } = await getOrderById(id);
+            if (mountedRef.current) setOrder(data.order || null);
+        } catch {
+            // silencioso en polling
+        } finally {
+            if (mountedRef.current && !silent) setLoading(false);
+        }
+    }, [id]);
 
     useEffect(() => {
-        const fetchOrder = async () => {
-            try {
-                const { data } = await getMyOrders({ page: 1, limit: 100 });
-                const found = data.orders?.find((o) => o._id === id);
-                setOrder(found || null);
-            } catch (err) {
-                console.error("Error", err);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchOrder();
-    }, [id]);
+        mountedRef.current = true;
+        fetchOrder(false);
+        return () => { mountedRef.current = false; };
+    }, [fetchOrder]);
+
+    useEffect(() => {
+        if (!isAuthenticated) return;
+        const interval = setInterval(() => {
+            if (document.visibilityState === "visible") fetchOrder(true);
+        }, 8000);
+        return () => clearInterval(interval);
+    }, [isAuthenticated, fetchOrder]);
+
+    const getStepIndex = (estado) => {
+        if (estado === "Cancelado") return -1;
+        return ORDER_STEPS.indexOf(estado);
+    };
+
+    const currentStep = order ? getStepIndex(order.estado) : -1;
 
     if (loading) {
         return (
@@ -47,6 +71,16 @@ export const OrderDetailPage = () => {
                     Volver a pedidos
                 </Link>
 
+                {order.estado === "Entregado" && (
+                    <Link
+                        to={`/restaurants/${order.id_restaurante?._id}/menu?repeat=${order._id}&items=${encodeURIComponent(JSON.stringify(order.items?.map(i => ({ id_producto: i.id_producto, nombre: i.nombre_historico, precio: i.precio_historico, cantidad: i.cantidad }))))}`}
+                        className="inline-flex items-center gap-2 ml-3 px-4 py-2 bg-[#E67E22] text-white text-sm font-semibold rounded-lg hover:bg-[#D35400] transition-colors"
+                    >
+                        <RotateCcw size={14} />
+                        Repetir pedido
+                    </Link>
+                )}
+
                 <div className="bg-white rounded-xl border border-[#E8D8C3] p-6">
                     <div className="flex items-center justify-between mb-4">
                         <h1 className="text-xl font-extrabold text-[#2B2B2B]">
@@ -60,6 +94,28 @@ export const OrderDetailPage = () => {
                             {order.estado}
                         </span>
                     </div>
+
+                    {order.estado !== "Cancelado" && (
+                        <div className="mb-6">
+                            <div className="flex items-center justify-between">
+                                {ORDER_STEPS.map((step, idx) => (
+                                    <div key={step} className="flex flex-col items-center flex-1">
+                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
+                                            idx <= currentStep ? "bg-green-500 text-white" :
+                                            "bg-gray-200 text-gray-500"
+                                        }`}>
+                                            {idx <= currentStep ? <Check size={14} /> : idx + 1}
+                                        </div>
+                                        <span className={`text-xs mt-1 text-center ${
+                                            idx <= currentStep ? "text-[#2B2B2B] font-semibold" : "text-gray-400"
+                                        }`}>
+                                            {step}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
                     <div className="space-y-2 text-sm text-[#6B6B6B] mb-4">
                         <p><span className="font-semibold text-[#2B2B2B]">Restaurante:</span> {order.id_restaurante?.nombre}</p>

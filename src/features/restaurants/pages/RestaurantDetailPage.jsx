@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { getRestaurantById, getMenuByRestaurant, getEventsByRestaurant, getRestaurantReviews, getEligibleForReview, createReview } from "../../../shared/api";
-import { MapPin, Clock, Phone, Mail, ArrowLeft, UtensilsCrossed, CalendarDays, Star, ShoppingBag, Send, ChevronDown, ChevronUp, X, ShoppingBag as BagIcon, Users, Calendar, Hash, Truck, Utensils } from "lucide-react";
+import { MapPin, Clock, Phone, Mail, ArrowLeft, UtensilsCrossed, CalendarDays, Star, ShoppingBag, Send, ChevronDown, ChevronUp, X, ShoppingBag as BagIcon, Users, Calendar, Hash, Truck, Utensils, Search } from "lucide-react";
 import { useAuthStore } from "../../auth/store/authStore";
 import { showSuccess, showError } from "../../../shared/utils/toast";
 
@@ -189,6 +189,8 @@ export const RestaurantDetailPage = () => {
     const [activeTab, setActiveTab] = useState("menu");
     const [loading, setLoading] = useState(true);
     const [selectedSucursal, setSelectedSucursal] = useState(null);
+    const [showSucursalModal, setShowSucursalModal] = useState(false);
+    const [sucursalSearch, setSucursalSearch] = useState("");
 
     const [reviewRating, setReviewRating] = useState(0);
     const [reviewComment, setReviewComment] = useState("");
@@ -365,27 +367,83 @@ export const RestaurantDetailPage = () => {
                 </div>
             </div>
 
-            {restaurant.tiene_sucursales && restaurant.sucursales?.length > 0 && (
-                <div className="max-w-4xl mx-auto px-4 pt-5">
-                    <p className="text-xs font-bold text-[#6B6B6B] uppercase tracking-widest mb-2">Selecciona una sucursal</p>
-                    <div className="flex gap-2 overflow-x-auto pb-2">
-                        {restaurant.sucursales.filter(s => s.activo !== false).map((s) => (
-                            <button
-                                key={s._id}
-                                onClick={() => setSelectedSucursal(s._id)}
-                                className={`shrink-0 px-4 py-2.5 rounded-xl border text-sm font-semibold transition-colors text-left ${
-                                    selectedSucursal === s._id
-                                        ? "bg-[#E67E22] text-white border-[#E67E22]"
-                                        : "bg-white text-[#6B6B6B] border-[#E8D8C3] hover:border-[#E67E22]"
-                                }`}
-                            >
-                                <span className="block font-bold">{s.nombre}</span>
-                                <span className="block text-xs opacity-75 mt-0.5">{s.direccion?.texto}</span>
-                            </button>
-                        ))}
+            {restaurant.tiene_sucursales && restaurant.sucursales?.length > 0 && (() => {
+                const activas = restaurant.sucursales.filter(s => s.activo !== false);
+                const sel = activas.find(s => s._id === selectedSucursal);
+                return (
+                    <div className="max-w-4xl mx-auto px-4 pt-5">
+                        <p className="text-xs font-bold text-[#6B6B6B] uppercase tracking-widest mb-2">Sucursal</p>
+                        <button
+                            onClick={() => { setSucursalSearch(""); setShowSucursalModal(true); }}
+                            className="w-full flex items-center justify-between gap-2 bg-white border border-[#E8D8C3] rounded-xl px-4 py-3 text-left hover:border-[#E67E22] transition-colors"
+                        >
+                            <div className="min-w-0">
+                                {sel ? (
+                                    <>
+                                        <p className="font-bold text-[#2B2B2B] text-sm truncate">{sel.nombre}</p>
+                                        <p className="text-xs text-[#6B6B6B] truncate">{sel.direccion?.texto}</p>
+                                    </>
+                                ) : (
+                                    <p className="text-sm text-[#6B6B6B]">Seleccionar sucursal...</p>
+                                )}
+                            </div>
+                            <ChevronDown size={16} className="text-[#6B6B6B] shrink-0" />
+                        </button>
                     </div>
-                </div>
-            )}
+                );
+            })()}
+
+            {showSucursalModal && restaurant.sucursales && (() => {
+                const activas = restaurant.sucursales.filter(s => s.activo !== false);
+                const q = sucursalSearch.toLowerCase();
+                const filtered = q ? activas.filter(s =>
+                    s.nombre.toLowerCase().includes(q) ||
+                    (s.direccion?.texto || "").toLowerCase().includes(q)
+                ) : activas;
+                return (
+                    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm">
+                        <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col">
+                            <div className="flex items-center justify-between px-5 py-4 border-b border-[#E8D8C3]">
+                                <h3 className="font-extrabold text-[#2B2B2B] text-base">Selecciona una sucursal</h3>
+                                <button onClick={() => setShowSucursalModal(false)} className="p-1 rounded-lg hover:bg-gray-100 text-[#6B6B6B]">
+                                    <X size={18} />
+                                </button>
+                            </div>
+                            <div className="px-5 pt-3">
+                                <div className="flex items-center gap-2 bg-[#F5EFE6] rounded-xl px-3 h-10">
+                                    <Search size={14} className="text-[#6B6B6B] shrink-0" />
+                                    <input
+                                        autoFocus
+                                        value={sucursalSearch}
+                                        onChange={(e) => setSucursalSearch(e.target.value)}
+                                        placeholder="Buscar por nombre o dirección..."
+                                        className="outline-none text-sm w-full bg-transparent text-[#2B2B2B] placeholder:text-[#6B6B6B]"
+                                    />
+                                </div>
+                            </div>
+                            <div className="flex-1 overflow-y-auto px-5 py-3 space-y-2">
+                                {filtered.length === 0 ? (
+                                    <p className="text-center text-[#6B6B6B] text-sm py-8">No se encontraron sucursales</p>
+                                ) : filtered.map((s) => (
+                                    <button
+                                        key={s._id}
+                                        onClick={() => { setSelectedSucursal(s._id); setShowSucursalModal(false); }}
+                                        className={`w-full text-left p-3 rounded-xl border transition-all ${
+                                            selectedSucursal === s._id
+                                                ? "border-[#E67E22] bg-[#FDF6EE]"
+                                                : "border-[#E8D8C3] hover:border-[#E67E22] hover:bg-[#F5EFE6]/50"
+                                        }`}
+                                    >
+                                        <p className={`font-bold text-sm ${selectedSucursal === s._id ? "text-[#E67E22]" : "text-[#2B2B2B]"}`}>{s.nombre}</p>
+                                        {s.direccion?.texto && <p className="text-xs text-[#6B6B6B] mt-0.5">{s.direccion.texto}</p>}
+                                        {s.horarios_atencion && <p className="text-[11px] text-[#6B6B6B] mt-0.5">{s.horarios_atencion}</p>}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
 
             <div className="max-w-4xl mx-auto px-4">
                 <div className="flex gap-1 border-b border-[#E8D8C3] -mb-px">

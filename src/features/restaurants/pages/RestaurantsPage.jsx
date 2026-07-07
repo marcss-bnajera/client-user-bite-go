@@ -1,10 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { getRestaurants } from "../../../shared/api";
-import { Search, MapPin } from "lucide-react";
+import { getRestaurants, getFavorites, toggleFavorite } from "../../../shared/api";
+import { useAuthStore } from "../../auth/store/authStore";
+import { showSuccess, showError } from "../../../shared/utils/toast";
+import { Search, MapPin, Heart } from "lucide-react";
 
 export const RestaurantsPage = () => {
+    const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
     const [restaurants, setRestaurants] = useState([]);
+    const [favorites, setFavorites] = useState(new Set());
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
     const [page, setPage] = useState(1);
@@ -13,15 +17,27 @@ export const RestaurantsPage = () => {
 
     useEffect(() => {
         let cancelled = false;
-        const fetchRestaurants = async () => {
+        const fetchAll = async () => {
             try {
                 setLoading(true);
                 const params = { page, limit: 12 };
-            if (search) params.search = search;
-                const { data } = await getRestaurants(params);
+                if (search) params.search = search;
+
+                const restaurantRes = await getRestaurants(params);
                 if (!cancelled) {
-                    setRestaurants(data.restaurants || []);
-                    setTotalPages(data.totalPages || 1);
+                    setRestaurants(restaurantRes.data.restaurants || []);
+                    setTotalPages(restaurantRes.data.totalPages || 1);
+                }
+
+                if (isAuthenticated && !cancelled) {
+                    try {
+                        const favRes = await getFavorites();
+                        if (!cancelled) {
+                            setFavorites(new Set(favRes.data.favoritos?.map(f => f._id) || []));
+                        }
+                    } catch {
+                        if (!cancelled) setFavorites(new Set());
+                    }
                 }
             } catch (err) {
                 console.error("Error al cargar restaurantes", err);
@@ -29,9 +45,26 @@ export const RestaurantsPage = () => {
                 if (!cancelled) setLoading(false);
             }
         };
-        fetchRestaurants();
+        fetchAll();
         return () => { cancelled = true; };
-    }, [page, refreshKey, search]);
+    }, [page, refreshKey, search, isAuthenticated]);
+
+    const handleToggleFavorite = useCallback(async (e, id) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!isAuthenticated) { showError("Inicia sesión para guardar favoritos"); return; }
+        try {
+            const { data } = await toggleFavorite(id);
+            setFavorites(prev => {
+                const next = new Set(prev);
+                data.isFavorite ? next.add(id) : next.delete(id);
+                return next;
+            });
+            showSuccess(data.message);
+        } catch {
+            showError("Error al actualizar favorito");
+        }
+    }, [isAuthenticated]);
 
     const handleSearch = (e) => {
         e.preventDefault();
@@ -41,7 +74,6 @@ export const RestaurantsPage = () => {
 
     return (
         <div className="min-h-screen bg-gray-50">
-            {/* Hero */}
             <div className="bg-gradient-to-r from-[#2B2B2B] to-[#3A2E2A] text-white py-12 px-4">
                 <div className="max-w-4xl mx-auto text-center">
                     <h1 className="text-3xl md:text-4xl font-extrabold mb-3">
@@ -71,7 +103,6 @@ export const RestaurantsPage = () => {
                 </div>
             </div>
 
-            {/* Restaurant grid */}
             <div className="max-w-6xl mx-auto px-4 py-8 pb-12">
                 {loading ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -92,43 +123,47 @@ export const RestaurantsPage = () => {
                 ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                         {restaurants.map((restaurant) => (
-                            <Link
-                                key={restaurant._id}
-                                to={`/restaurants/${restaurant._id}`}
-                                className="bg-white rounded-2xl shadow-sm border border-[#E8D8C3] overflow-hidden hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
-                            >
-                                <div className="h-48 bg-gradient-to-br from-[#F5EFE6] to-[#E8D8C3] flex items-center justify-center">
-                                    {restaurant.fotos_url?.[0] ? (
-                                        <img
-                                            src={restaurant.fotos_url[0]}
-                                            alt={restaurant.nombre}
-                                            className="w-full h-full object-cover"
-                                        />
-                                    ) : (
-                                        <span className="text-4xl">🍽️</span>
-                                    )}
-                                </div>
-                                <div className="p-4">
-                                    <h3 className="font-bold text-[#2B2B2B] text-lg">{restaurant.nombre}</h3>
-                                    <div className="flex items-center gap-1 text-sm text-[#6B6B6B] mt-1">
-                                        <MapPin size={14} />
-                                        <span className="truncate">{restaurant.direccion?.texto}</span>
+                                <Link
+                                    key={restaurant._id}
+                                    to={`/restaurants/${restaurant._id}`}
+                                    className="group bg-white rounded-2xl shadow-sm border border-[#E8D8C3] overflow-hidden hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
+                                >
+                                    <div className="relative h-48 bg-gradient-to-br from-[#F5EFE6] to-[#E8D8C3] flex items-center justify-center">
+                                        {restaurant.fotos_url?.[0] ? (
+                                            <img src={restaurant.fotos_url[0]} alt={restaurant.nombre} className="w-full h-full object-cover" />
+                                        ) : (
+                                            <span className="text-4xl">🍽️</span>
+                                        )}
+                                        <button
+                                            onClick={(e) => handleToggleFavorite(e, restaurant._id)}
+                                            className="absolute top-3 right-3 p-2 rounded-full bg-white/80 backdrop-blur-sm hover:bg-white transition-colors shadow-sm"
+                                        >
+                                            <Heart
+                                                size={18}
+                                                className={favorites.has(restaurant._id) ? "fill-[#E67E22] text-[#E67E22]" : "text-[#6B6B6B]"}
+                                            />
+                                        </button>
                                     </div>
-                                    <div className="flex items-center justify-between mt-3">
-                                        <span className="text-xs font-semibold text-[#E67E22] bg-[#F5EFE6] px-2 py-1 rounded-full">
-                                            {restaurant.categoria_gastronomica}
-                                        </span>
-                                        <span className="text-sm font-bold text-[#2B2B2B]">
-                                            Q{restaurant.precio_promedio}
-                                        </span>
+                                    <div className="p-4">
+                                        <h3 className="font-bold text-[#2B2B2B] text-lg">{restaurant.nombre}</h3>
+                                        <div className="flex items-center gap-1 text-sm text-[#6B6B6B] mt-1">
+                                            <MapPin size={14} />
+                                            <span className="truncate">{restaurant.direccion?.texto}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between mt-3">
+                                            <span className="text-xs font-semibold text-[#E67E22] bg-[#F5EFE6] px-2 py-1 rounded-full">
+                                                {restaurant.categoria_gastronomica}
+                                            </span>
+                                            <span className="text-sm font-bold text-[#2B2B2B]">
+                                                Q{restaurant.precio_promedio}
+                                            </span>
+                                        </div>
                                     </div>
-                                </div>
-                            </Link>
+                                </Link>
                         ))}
                     </div>
                 )}
 
-                {/* Pagination */}
                 {totalPages > 1 && (
                     <div className="flex justify-center gap-2 mt-8">
                         <button
