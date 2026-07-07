@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react"
 import { useNavigate, Link } from "react-router-dom"
 import { useAuthStore } from "../../features/auth/store/authStore"
-import { User, ShoppingBag, CalendarDays, LogOut, Star } from "lucide-react"
+import { User, ShoppingBag, CalendarDays, LogOut, Star, Heart, MapPin } from "lucide-react"
 
 export const AvatarUser = () => {
     const user = useAuthStore((s) => s.user);
@@ -29,7 +29,13 @@ export const AvatarUser = () => {
 
     const hasPicture = user?.profilePicture
         && user.profilePicture.trim() !== ""
+        && user.profilePicture.includes("res.cloudinary.com")
         && !user.profilePicture.includes("default-avatar");
+
+    const [imgFailed, setImgFailed] = useState(false);
+    const showPicture = hasPicture && !imgFailed;
+
+    useEffect(() => { setImgFailed(false); }, [user?.profilePicture]);
 
     return (
         <div className="relative" ref={dropdownRef}>
@@ -38,12 +44,12 @@ export const AvatarUser = () => {
                 className="w-10 h-10 rounded-full bg-[#E67E22] flex items-center justify-center cursor-pointer hover:bg-[#D35400] transition-colors overflow-hidden"
                 title={user?.username || "Mi cuenta"}
             >
-                {hasPicture ? (
+                {showPicture ? (
                     <img
                         src={user.profilePicture}
                         alt={user.username}
                         className="w-full h-full object-cover"
-                        onError={(e) => { e.target.style.display = "none"; }}
+                        onError={() => setImgFailed(true)}
                     />
                 ) : (
                     <User size={20} className="text-white" />
@@ -53,8 +59,8 @@ export const AvatarUser = () => {
                 <div className="absolute right-0 mt-2 w-56 bg-[#3A2E2A] border border-[#5a4a44] rounded-xl shadow-xl animate-fadeIn z-50 overflow-hidden">
                     <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-[#4a3c38] to-[#3A2E2A] border-b border-[#5a4a44]">
                         <div className="w-10 h-10 rounded-full bg-[#E67E22] flex items-center justify-center shrink-0 overflow-hidden">
-                            {hasPicture ? (
-                                <img src={user.profilePicture} alt={user.username} className="w-full h-full object-cover" />
+                            {showPicture ? (
+                                <img src={user.profilePicture} alt={user.username} className="w-full h-full object-cover" onError={() => setImgFailed(true)} />
                             ) : (
                                 <User size={18} className="text-white" />
                             )}
@@ -104,6 +110,26 @@ export const AvatarUser = () => {
                             >
                                 <Star size={16} className="text-[#f39c12]" />
                                 Mis Reseñas
+                            </Link>
+                        </li>
+                        <li>
+                            <Link
+                                to="/favorites"
+                                className="flex items-center gap-2 p-2 rounded-lg transition-all text-[#D1D1D1] hover:bg-[#D35400] hover:text-white"
+                                onClick={() => setOpen(false)}
+                            >
+                                <Heart size={16} className="text-[#C0392B]" />
+                                Favoritos
+                            </Link>
+                        </li>
+                        <li>
+                            <Link
+                                to="/addresses"
+                                className="flex items-center gap-2 p-2 rounded-lg transition-all text-[#D1D1D1] hover:bg-[#D35400] hover:text-white"
+                                onClick={() => setOpen(false)}
+                            >
+                                <MapPin size={16} className="text-[#3498DB]" />
+                                Direcciones
                             </Link>
                         </li>
                         <li className="border-t border-[#5a4a44] mt-1 pt-1">
