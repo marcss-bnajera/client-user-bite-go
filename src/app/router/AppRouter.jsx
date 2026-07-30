@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthPage } from "../../features/auth/pages/AuthPage.jsx";
 import { VerifyEmailPage } from "../../features/auth/pages/VerifyEmailPage.jsx";
+import { ResetPasswordPage } from "../../features/auth/pages/ResetPasswordPage.jsx";
 import { UserLayout } from "../layouts/UserLayout.jsx";
 import { RestaurantsPage } from "../../features/restaurants/pages/RestaurantsPage.jsx";
 import { RestaurantDetailPage } from "../../features/restaurants/pages/RestaurantDetailPage.jsx";
@@ -24,6 +25,7 @@ export const AppRoutes = () => {
             <Route path="/" element={<Navigate to="/auth" replace />} />
             <Route path="/auth" element={!isAuthenticated ? <AuthPage /> : <Navigate to="/restaurants" replace />} />
             <Route path="/verify-email" element={<VerifyEmailPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
 
             {/* PROTECTED */}
             <Route element={isAuthenticated ? <UserLayout /> : <Navigate to="/auth" replace />}>
