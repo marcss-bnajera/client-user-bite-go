@@ -25,3 +25,7 @@ export const resetPassword = async (token, newPassword) => {
 export const verifyEmail = async (token) => {
     return await axiosAuth.post("/api/v1/Auth/verify-email", { token });
 };
+
+export const resendVerification = async (email) => {
+    return await axiosAuth.post("/api/v1/Auth/resend-verification", { email });
+};

@@ -84,7 +84,10 @@ export const useAuthStore = create(
                     return { success: true };
 
                 } catch (err) {
-                    const errorMessage = err.response?.data?.message || "Error al iniciar sesión";
+                    const rawMessage = err.response?.data?.message || "Error al iniciar sesión";
+                    const errorMessage = rawMessage === "User account is disabled"
+                        ? "Tu cuenta no está activada. Revisa tu correo y haz clic en el enlace de verificación."
+                        : rawMessage;
                     set({ error: errorMessage, loading: false });
                     toast.error(errorMessage);
                     return { success: false, error: errorMessage };

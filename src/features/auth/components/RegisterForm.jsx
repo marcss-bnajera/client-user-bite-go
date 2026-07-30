@@ -1,12 +1,15 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { Eye, EyeOff } from "lucide-react";
-import { register as registerAuth } from "../../../shared/api";
+import { Eye, EyeOff, Mail } from "lucide-react";
+import { register as registerAuth, resendVerification } from "../../../shared/api";
 import { registerUser } from "../../../shared/api/user";
-import { showSuccess, showError } from "../../../shared/utils/toast";
+import { showError } from "../../../shared/utils/toast";
 
 export const RegisterForm = ({ onSwitch }) => {
     const [loading, setLoading] = useState(false);
+    const [registeredEmail, setRegisteredEmail] = useState("");
+    const [resending, setResending] = useState(false);
+    const [cooldown, setCooldown] = useState(0);
     const [showPassword, setShowPassword] = useState(false);
 
     const {
@@ -39,8 +42,7 @@ export const RegisterForm = ({ onSwitch }) => {
                 // MongoDB registration is best-effort; auth-service is the source of truth
             }
 
-            showSuccess("Cuenta creada exitosamente. Verifica tu email para activar la cuenta.");
-            onSwitch();
+            setRegisteredEmail(data.email);
         } catch (err) {
             const msg = err.response?.data?.message || "Error al registrar";
             showError(msg);
@@ -48,6 +50,62 @@ export const RegisterForm = ({ onSwitch }) => {
             setLoading(false);
         }
     };
+
+    const handleResend = async () => {
+        try {
+            setResending(true);
+            await resendVerification(registeredEmail);
+        } catch {
+            showError("Error al reenviar el correo");
+        } finally {
+            setResending(false);
+            setCooldown(45);
+            const interval = setInterval(() => {
+                setCooldown(prev => {
+                    if (prev <= 1) {
+                        clearInterval(interval);
+                        return 0;
+                    }
+                    return prev - 1;
+                });
+            }, 1000);
+        }
+    };
+
+    if (registeredEmail) {
+        return (
+            <div className="text-center space-y-6">
+                <div className="w-16 h-16 bg-[#F5EFE6] rounded-full flex items-center justify-center mx-auto">
+                    <Mail size={32} className="text-[#E67E22]" />
+                </div>
+                <div>
+                    <h2 className="text-xl font-bold text-[#2B2B2B] mb-2">Revisa tu correo</h2>
+                    <p className="text-[#6B6B6B] text-sm leading-relaxed">
+                        Te enviamos un enlace de verificación a{" "}
+                        <span className="font-semibold text-gray-800">{registeredEmail}</span>.
+                        Haz clic en el enlace para activar tu cuenta.
+                    </p>
+                </div>
+                <div className="bg-[#F5EFE6] rounded-lg p-4 text-sm text-[#6B6B6B]">
+                    <p>¿No recibiste el correo?</p>
+                    <p className="mt-1">Revisa tu carpeta de spam o solicita un nuevo enlace.</p>
+                </div>
+                <button
+                    onClick={handleResend}
+                    disabled={resending || cooldown > 0}
+                    className="text-[#E67E22] hover:underline font-semibold text-sm disabled:text-gray-400 disabled:cursor-not-allowed"
+                >
+                    {resending ? "Enviando..." : cooldown > 0 ? `Reenviar en ${cooldown}s` : "Reenviar correo"}
+                </button>
+                <button
+                    onClick={onSwitch}
+                    className="w-full bg-[#E67E22] hover:bg-[#D35400] text-white font-medium py-2.5 px-4 rounded-lg transition-colors duration-200 text-sm"
+                >
+                    Ya lo verifiqué, iniciar sesión
+                </button>
+            </div>
+        );
+    }
 
     return (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
